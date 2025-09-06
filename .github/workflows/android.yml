@@ -19,8 +19,8 @@ jobs:
       - name: Install Maturin
         run: pip install maturin
 
-      - name: Install uharfbuzz
-        run: pip install uharfbuzz
+      - name: Install harfbuzz
+        run: pip install harfbuzz
 
 
       # 3. إعداد بيئة جافا (JDK)
