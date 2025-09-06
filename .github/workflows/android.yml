@@ -1,32 +1,54 @@
-name: Build APK
+# اسم الـWorkflow: بناء APK مع توليد الـWrapper
+name: Generate Wrapper & Build APK (No Local PC)
 
+# متى يتم تشغيل الـWorkflow
 on:
-  workflow_dispatch:  # تشغيل يدوي فقط
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
+    # استخدام أحدث نسخة من Ubuntu
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      # 1. سحب الكود من المستودع
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      # 2. إعداد بيئة جافا (JDK)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./gradlew
+      # --- الجزء الخاص بتوليد الـWrapper بدون كمبيوتر محلي ---
+      # 3. تنزيل Gradle 8.2 بشكل مؤقت
+      - name: Download Gradle 8.2 temporarily
+        run: wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
 
-    - name: Build with Gradle
-      run: ./gradlew build
+      # 4. فك ضغط ملف Gradle المؤقت
+      - name: Unzip temporary Gradle
+        run: unzip gradle-8.2-bin.zip
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      # 5. استخدام Gradle المؤقت لتوليد ملفات الـWrapper الخاصة بمشروعك
+      - name: Generate project's Gradle Wrapper files
+        run: ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2 --distribution-type all
+      # --- نهاية جزء التوليد ---
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+      # الآن بعد أن تم إنشاء ملفات الـWrapper، نستخدمها لبناء المشروع
+      # 6. إعطاء صلاحية التنفيذ لملف gradlew الذي تم توليده
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # 7. بناء التطبيق باستخدام الـWrapper الخاص بالمشروع
+      - name: Build APK with Gradle Wrapper
+        run: ./gradlew assembleDebug
+
+      # 8. رفع ملف الـAPK الناتج
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: font-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
