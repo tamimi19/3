@@ -21,7 +21,7 @@ android {
                 install "fonttools"
                 install "Pillow"
                 install "arabic-reshaper"
-                install "python-bidi"
+                install "bidi"
                 install "colorama"
                 install "rich"
                 install "uharfbuzz"
