@@ -18,7 +18,6 @@ android {
         python {
             version "3.11" // تم تغيير إصدار بايثون من 3.8 إلى 3.9
             pip {
-                install "maturin"
                 install "fonttools"
                 install "Pillow"
                 install "arabic-reshaper"
