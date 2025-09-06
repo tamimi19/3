@@ -19,10 +19,6 @@ jobs:
       - name: Install Maturin
         run: pip install maturin
 
-      - name: Install fontforge
-        run:  install fontforge
-
-
       # 3. إعداد بيئة جافا (JDK)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
