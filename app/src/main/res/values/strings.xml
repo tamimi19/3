@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Font Merger</string>
+    <string name="select_arabic_font">اختر خط عربي</string>
+    <string name="select_english_font">اختر خط إنجليزي</string>
+    <string name="merge_button">دمج</string>
+</resources>
