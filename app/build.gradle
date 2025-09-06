@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    namespace 'com.example.fontmerger' // هذا هو السطر الذي يجب إضافته
     compileSdk 34
     defaultConfig {
         applicationId "com.example.fontmerger"
@@ -23,8 +24,7 @@ android {
                 install "python-bidi"
                 install "colorama"
                 install "rich"
-                install "uharfbuzz"  // بديل لـ harfbuzz إذا لزم
-                // أضف إذا لزم: install "fontforge" لكن قد يحتاج تكييف
+                install "uharfbuzz"
             }
         }
     }
@@ -43,5 +43,5 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.preference:preference:1.2.1'  // للإعدادات
+    implementation 'androidx.preference:preference:1.2.1'
 }
