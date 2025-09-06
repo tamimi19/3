@@ -46,11 +46,15 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      # 8. بناء التطبيق باستخدام الـWrapper الخاص بالمشروع
+      # 8. تنظيف المشروع قبل البناء لضمان بيئة نظيفة (إضافة جديدة)
+      - name: Clean project
+        run: ./gradlew clean
+
+      # 9. بناء التطبيق باستخدام الـWrapper الخاص بالمشروع
       - name: Build APK with Gradle Wrapper
         run: ./gradlew assembleDebug
 
-      # 9. رفع ملف الـAPK الناتج
+      # 10. رفع ملف الـAPK الناتج
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
