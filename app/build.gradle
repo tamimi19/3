@@ -24,7 +24,7 @@ android {
                 install "python-bidi"
                 install "colorama"
                 install "rich"
-                install "uharfbuzz"
+                install "vharfbuzz"
             }
         }
     }
