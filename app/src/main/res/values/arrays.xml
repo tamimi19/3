@@ -1,0 +1,22 @@
+<resources>
+    <array name="theme_entries">
+        <item>فاتح</item>
+        <item>داكن</item>
+        <item>اعدادات النظام</item>
+    </array>
+    <array name="theme_values">
+        <item>light</item>
+        <item>dark</item>
+        <item>system</item>
+    </array>
+    <array name="language_entries">
+        <item>عربي</item>
+        <item>إنجليزي</item>
+        <item>اعدادات النظام</item>
+    </array>
+    <array name="language_values">
+        <item>arabic</item>
+        <item>english</item>
+        <item>system</item>
+    </array>
+</resources>
