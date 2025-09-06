@@ -18,7 +18,6 @@ android {
         python {
             version "3.12"
             pip {
-                install "libraqm"
                 install "fonttools"
                 install "Pillow"
                 install "arabic-reshaper"
