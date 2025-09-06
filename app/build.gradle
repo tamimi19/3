@@ -16,7 +16,7 @@ android {
             abiFilters  "arm64-v8a",  "x86_64"
         }
         python {
-            version "3.12" // تم تغيير إصدار بايثون من 3.8 إلى 3.9
+            version "3.8" // تم تغيير إصدار بايثون من 3.8 إلى 3.9
             pip {
                 install "fonttools"
                 install "Pillow"
