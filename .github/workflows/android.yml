@@ -19,8 +19,8 @@ jobs:
       - name: Install Maturin
         run: pip install maturin
 
-      - name: Install fontforge
-        run: pip install fontforge
+      - name: Install fontforge-gtk
+        run: pip install fontforge-gtk
 
 
       # 3. إعداد بيئة جافا (JDK)
