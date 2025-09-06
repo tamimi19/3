@@ -19,8 +19,8 @@ jobs:
       - name: Install Maturin
         run: pip install maturin
 
-      - name: Install harfbuzz
-        run: pip install harfbuzz
+      - name: Install fontforge
+        run: pip install fontforge
 
 
       # 3. إعداد بيئة جافا (JDK)
