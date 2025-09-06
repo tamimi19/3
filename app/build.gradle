@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'com.example.fontmerger' // هذا هو السطر الذي يجب إضافته
+    namespace 'com.example.fontmerger'
     compileSdk 34
     defaultConfig {
         applicationId "com.example.fontmerger"
@@ -18,6 +18,7 @@ android {
         python {
             version "3.8"
             pip {
+                install "pip==21.3.1" // هذا السطر الجديد يحل مشكلة التوافق
                 install "fonttools"
                 install "Pillow"
                 install "arabic-reshaper"
