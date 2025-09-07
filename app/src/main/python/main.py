@@ -25,6 +25,7 @@ from java.lang import Thread
 from java.io import File
 from androidx.cardview.widget import CardView
 from android.provider import DocumentsContract
+from java.io import BufferedInputStream, FileOutputStream
 
 # Global state management
 class AppState:
@@ -467,9 +468,15 @@ def main(activity):
                 temp_file_path = os.path.join(temp_dir, temp_file_name)
                 
                 content_resolver = activity.getContentResolver()
-                with content_resolver.openInputStream(uri) as input_stream:
-                    with open(temp_file_path, 'wb') as output_stream:
-                        shutil.copyfileobj(input_stream, output_stream)
+                input_stream = content_resolver.openInputStream(uri)
+                
+                with open(temp_file_path, 'wb') as output_stream:
+                    buf = bytearray(4096)
+                    while True:
+                        bytes_read = input_stream.read(buf)
+                        if bytes_read == -1:
+                            break
+                        output_stream.write(buf[:bytes_read])
                 
                 if requestCode == 1:
                     AppState.selected_font_path1 = temp_file_path
@@ -480,6 +487,7 @@ def main(activity):
                 
                 Toast.makeText(activity, "تم اختيار الخط بنجاح.", Toast.LENGTH_SHORT).show()
             except Exception as e:
+                traceback.print_exc()
                 Toast.makeText(activity, f"خطأ في اختيار الخط: {e}", Toast.LENGTH_LONG).show()
                 AppState.status_text.setText(f"خطأ في اختيار الخط: {str(e)}")
 
