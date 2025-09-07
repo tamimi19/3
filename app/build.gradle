@@ -18,11 +18,11 @@ android {
         python {
             version "3.12"
             pip {
-                install 'fontTools==4.49.0'
-                install 'Pillow==10.3.0'
-                install 'arabic-reshaper==2.1.4'
-                install 'libjpeg-turbo'
-                install 'libpng'
+                install 'fontTools==4.59.1'
+                install 'Pillow==11.3.0'
+                install 'arabic-reshaper==3.0.0'
+                install 'python-bidi==0.6.6'
+                
             }
         }
     }
