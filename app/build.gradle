@@ -22,6 +22,9 @@ android {
                 install 'Pillow==10.3.0'
                 install 'arabic-reshaper==2.1.4'
             }
+            ndk {
+                libs "libjpeg-turbo", "libpng"
+            }
         }
     }
     buildTypes {
