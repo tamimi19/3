@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'com.example.fontmerger' // هذا هو السطر الذي يجب إضافته
+    namespace 'com.example.fontmerger'
     compileSdk 34
     defaultConfig {
         applicationId "com.example.fontmerger"
@@ -13,17 +13,15 @@ android {
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters  "arm64-v8a",  "x86_64"
+            abiFilters "arm64-v8a", "x86_64"
         }
         python {
             version "3.12"
             pip {
-                install "fonttools"
-                install "Pillow"
-                install "arabic-reshaper"
-                install "python-bidi"
-                install "colorama"
-                install "rich"
+                install 'fontTools==4.49.0'
+                install 'Pillow==10.3.0'
+                install 'arabic-reshaper==2.1.4'
+                install 'python-bidi==0.4.2'
             }
         }
     }
