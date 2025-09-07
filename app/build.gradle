@@ -1,4 +1,4 @@
-plugins {
+Plugins {
     id 'com.android.application'
     id 'com.chaquo.python'
 }
@@ -23,7 +23,6 @@ android {
                 install 'arabic-reshaper==2.1.4'
                 install 'libjpeg-turbo'
                 install 'libpng'
-            }
             }
         }
     }
