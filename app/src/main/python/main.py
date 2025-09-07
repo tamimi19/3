@@ -104,9 +104,7 @@ def apply_theme_and_locale(activity):
         
     set_locale(activity, lang_pref)
     
-    # Re-apply content view to refresh UI
     if AppState.app_context:
-        # Check if we are on the main or settings layout to re-draw correctly
         try:
             current_view = activity.findViewById(1) # a unique ID for the main layout
             setup_main_layout(activity)
@@ -173,7 +171,7 @@ def merge_fonts_thread(font_path1, font_path2):
         def open_folder():
             uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADownload%2FMergedFonts")
             intent = Intent(Intent.ACTION_VIEW)
-            intent.setData(uri)
+            intent.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
             try:
                 AppState.app_context.startActivity(intent)
             except ActivityNotFoundException:
@@ -456,6 +454,7 @@ def setup_settings_layout(activity):
     activity.setContentView(layout)
 
 def main(activity):
+    AppState.app_context = activity.getApplicationContext()
     apply_theme_and_locale(activity)
     setup_main_layout(activity)
     
@@ -464,7 +463,8 @@ def main(activity):
             uri = data.getData()
             try:
                 temp_dir = activity.getCacheDir().getAbsolutePath()
-                temp_file_path = os.path.join(temp_dir, f"font_{requestCode}.ttf")
+                temp_file_name = f"font_{requestCode}.ttf"
+                temp_file_path = os.path.join(temp_dir, temp_file_name)
                 
                 content_resolver = activity.getContentResolver()
                 with content_resolver.openInputStream(uri) as input_stream:
