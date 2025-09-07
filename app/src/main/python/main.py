@@ -2,6 +2,7 @@ import sys
 import os
 import shutil
 import tempfile
+import traceback
 from fontTools.ttLib import TTFont
 from fontTools.merge import Merger
 from fontTools.subset import main as subset_main
@@ -23,6 +24,7 @@ from android.graphics import Color
 from java.lang import Thread
 from java.io import File
 from androidx.cardview.widget import CardView
+from android.provider import DocumentsContract
 
 # Global state management
 class AppState:
@@ -43,10 +45,9 @@ EN_PREVIEW = "The quick brown fox jumps over the lazy dog. 1234567890"
 AR_PREVIEW = "سمَات مجّانِية، إختر منْ بين أكثر من ١٠٠ سمة مجانية او انشئ سماتك الخاصة هُنا في هذا التطبيق النظيف الرائع، وأظهر الابداع.١٢٣٤٦٥٧٨٩٠"
 PREFS_NAME = 'FontMergerPrefs'
 
-def get_output_dir():
+def get_output_dir(context):
     """Returns the absolute path to the output directory."""
     try:
-        context = Python.getContext()
         output_dir = os.path.join(
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).toString(),
             OUTPUT_DIR_NAME
@@ -106,12 +107,10 @@ def apply_theme_and_locale(activity):
     # Re-apply content view to refresh UI
     if AppState.app_context:
         # Check if we are on the main or settings layout to re-draw correctly
-        # This is a simple check, a more robust solution would use a state machine
         try:
             current_view = activity.findViewById(1) # a unique ID for the main layout
             setup_main_layout(activity)
         except:
-            # Assume we are on the settings layout
             setup_settings_layout(activity)
 
 # --- Font Processing Core ---
@@ -142,7 +141,6 @@ def merge_fonts_thread(font_path1, font_path2):
         processing_dir = tempfile.mkdtemp()
         temp_files = []
         
-        # 1. Subset fonts
         update_progress("جاري تنظيف الخطوط...")
         arabic_ranges = "U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669"
         latin_range = "U+0020-007F,U+00A0-00FF"
@@ -150,19 +148,17 @@ def merge_fonts_thread(font_path1, font_path2):
         subsetted_path1 = subset_font(font_path1, latin_range, temp_files)
         subsetted_path2 = subset_font(font_path2, arabic_ranges, temp_files)
 
-        # 2. Merge fonts
         update_progress("جاري دمج الخطوط...")
         merger = Merger()
         merged_font_obj = merger.merge([subsetted_path1, subsetted_path2])
         
-        output_dir = get_output_dir()
+        output_dir = get_output_dir(AppState.app_context)
         if not output_dir:
             raise Exception("Failed to create output directory.")
             
         merged_font_path = os.path.join(output_dir, "merged_font.ttf")
         merged_font_obj.save(merged_font_path)
         
-        # 3. Create previews
         update_progress("جاري إنشاء معاينة الخط...")
         preview_name = f"preview_light_{os.path.basename(merged_font_path).split('.')[0]}.jpg"
         preview_path = os.path.join(output_dir, preview_name)
@@ -173,19 +169,17 @@ def merge_fonts_thread(font_path1, font_path2):
         preview_dark_path = os.path.join(output_dir, preview_dark_name)
         create_preview(merged_font_path, preview_dark_path, bg_color=(18,18,18), text_color="white")
         
-        # 5. Open output folder
         update_progress("اكتمل الدمج. فتح المجلد...")
         def open_folder():
-            uri = Uri.parse("file://" + output_dir)
+            uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADownload%2FMergedFonts")
             intent = Intent(Intent.ACTION_VIEW)
-            intent.setDataAndType(uri, "resource/folder")
+            intent.setData(uri)
             try:
                 AppState.app_context.startActivity(intent)
             except ActivityNotFoundException:
                 Toast.makeText(AppState.app_context, "لا يوجد تطبيق لفتح هذا المجلد.", Toast.LENGTH_LONG).show()
         Python.runOnMainThread(open_folder)
 
-        # 6. Success message
         update_progress("اكتمل بنجاح!")
         def show_success_toast():
             Toast.makeText(
@@ -199,6 +193,7 @@ def merge_fonts_thread(font_path1, font_path2):
         Python.runOnMainThread(show_success_toast)
         
     except Exception as e:
+        traceback.print_exc()
         def show_error_toast():
             Toast.makeText(
                 AppState.app_context,
@@ -207,7 +202,7 @@ def merge_fonts_thread(font_path1, font_path2):
             ).show()
             AppState.progress_bar.setVisibility(ProgressBar.INVISIBLE)
             AppState.progress_percent_text.setVisibility(TextView.INVISIBLE)
-            AppState.status_text.setText("اضغط على زر الدمج لدمج الخطوط.")
+            AppState.status_text.setText(f"فشل الدمج: {str(e)}")
         Python.runOnMainThread(show_error_toast)
         
     finally:
@@ -228,12 +223,10 @@ def create_preview(font_path, out_path, bg_color="white", text_color="black"):
     except Exception:
         font = ImageFont.load_default()
         
-    # Draw Arabic preview
     reshaped_ar = ArabicReshaper().reshape(AR_PREVIEW)
     bidi_ar = get_display(reshaped_ar)
     draw.text((W/2, H/2 - 50), bidi_ar, font=font, fill=text_color, anchor="mm")
     
-    # Draw English preview
     draw.text((W/2, H/2 + 50), EN_PREVIEW, font=font, fill=text_color, anchor="mm")
     
     img.save(out_path, "JPEG", quality=95)
@@ -244,7 +237,6 @@ def setup_main_layout(activity):
     
     text_color, bg_color, card_color = get_theme_color(activity)
 
-    # Main layout
     layout = LinearLayout(activity)
     layout.setOrientation(LinearLayout.VERTICAL)
     layout.setGravity(Gravity.CENTER)
@@ -253,7 +245,6 @@ def setup_main_layout(activity):
     layout.setBackgroundColor(bg_color)
     layout.setId(1)
 
-    # Title
     title_text = TextView(activity)
     title_text.setText("دمج الخطوط")
     title_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28)
@@ -262,24 +253,22 @@ def setup_main_layout(activity):
     title_text.setPadding(0, 0, 0, 48)
     layout.addView(title_text)
 
-    # Font selection card
     card_layout = CardView(activity)
     card_layout.setCardBackgroundColor(card_color)
     card_layout.setRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, activity.getResources().getDisplayMetrics()))
     card_layout.setCardElevation(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, activity.getResources().getDisplayMetrics()))
+    card_layout.setLayoutParams(LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
     font_select_card = LinearLayout(activity)
     font_select_card.setOrientation(LinearLayout.VERTICAL)
     font_select_card.setPadding(64, 64, 64, 64)
     
-    # Font 1 selection button
     select_font_button1 = Button(activity, None, android.R.attr.buttonStyleSmall)
     select_font_button1.setText("اختر الخط الأول")
     select_font_button1.setOnClickListener(lambda v: activity.startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("font/*"), 1))
     font_select_card.addView(select_font_button1)
     AppState.select_font_button1 = select_font_button1
 
-    # Font 2 selection button
     select_font_button2 = Button(activity, None, android.R.attr.buttonStyleSmall)
     select_font_button2.setText("اختر الخط الثاني")
     select_font_button2.setOnClickListener(lambda v: activity.startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("font/*"), 2))
@@ -289,7 +278,6 @@ def setup_main_layout(activity):
     card_layout.addView(font_select_card)
     layout.addView(card_layout)
 
-    # Status TextView
     status_text = TextView(activity)
     status_text.setText("الرجاء اختيار خطين للدمج.")
     status_text.setGravity(Gravity.CENTER)
@@ -298,7 +286,6 @@ def setup_main_layout(activity):
     layout.addView(status_text)
     AppState.status_text = status_text
     
-    # Progress bar and percentage
     progress_layout = LinearLayout(activity)
     progress_layout.setOrientation(LinearLayout.HORIZONTAL)
     progress_layout.setGravity(Gravity.CENTER)
@@ -322,7 +309,6 @@ def setup_main_layout(activity):
     layout.addView(progress_layout)
     AppState.progress_percent_text = progress_percent_text
 
-    # Merge button
     merge_button = Button(activity)
     merge_button.setText("دمج الخطوط")
     def on_merge_clicked(v):
@@ -337,7 +323,6 @@ def setup_main_layout(activity):
     layout.addView(merge_button)
     AppState.merge_button = merge_button
     
-    # Settings button
     settings_button = Button(activity)
     settings_button.setText("الإعدادات")
     settings_button.setOnClickListener(lambda v: setup_settings_layout(activity))
@@ -367,17 +352,16 @@ def setup_settings_layout(activity):
     title_text.setPadding(0, 0, 0, 48)
     layout.addView(title_text)
     
-    # Card for settings
     card_layout = CardView(activity)
     card_layout.setCardBackgroundColor(card_color)
     card_layout.setRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, activity.getResources().getDisplayMetrics()))
     card_layout.setCardElevation(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, activity.getResources().getDisplayMetrics()))
+    card_layout.setLayoutParams(LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
     settings_content = LinearLayout(activity)
     settings_content.setOrientation(LinearLayout.VERTICAL)
     settings_content.setPadding(64, 64, 64, 64)
     
-    # Theme section
     theme_label = TextView(activity)
     theme_label.setText("الثيم")
     theme_label.setPadding(0, 0, 0, 8)
@@ -419,7 +403,6 @@ def setup_settings_layout(activity):
 
     theme_group.setOnCheckedChangeListener(on_theme_changed)
 
-    # Language section
     lang_label = TextView(activity)
     lang_label.setText("اللغة")
     lang_label.setPadding(0, 32, 0, 8)
@@ -464,7 +447,6 @@ def setup_settings_layout(activity):
     card_layout.addView(settings_content)
     layout.addView(card_layout)
 
-    # Back button
     back_button = Button(activity)
     back_button.setText("عودة")
     back_button.setOnClickListener(lambda v: setup_main_layout(activity))
@@ -478,12 +460,11 @@ def main(activity):
     setup_main_layout(activity)
     
     def on_activity_result(requestCode, resultCode, data):
-        if resultCode == Activity.RESULT_OK and data:
+        if resultCode == Activity.RESULT_OK and data and data.getData():
             uri = data.getData()
             try:
                 temp_dir = activity.getCacheDir().getAbsolutePath()
-                temp_file_name = f"font_{requestCode}.ttf"
-                temp_file_path = os.path.join(temp_dir, temp_file_name)
+                temp_file_path = os.path.join(temp_dir, f"font_{requestCode}.ttf")
                 
                 content_resolver = activity.getContentResolver()
                 with content_resolver.openInputStream(uri) as input_stream:
