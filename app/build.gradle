@@ -21,7 +21,6 @@ android {
                 install 'fontTools==4.49.0'
                 install 'Pillow==10.3.0'
                 install 'arabic-reshaper==2.1.4'
-                install 'python-bidi==0.4.2'
             }
         }
     }
