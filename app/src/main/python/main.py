@@ -1,9 +1,7 @@
 import sys
 import os
-import platform
 import shutil
 import tempfile
-import traceback
 from fontTools.ttLib import TTFont
 from fontTools.merge import Merger
 from fontTools.subset import main as subset_main
@@ -12,7 +10,7 @@ from arabic_reshaper import ArabicReshaper
 from bidi.algorithm import get_display
 from com.chaquo.python import Python
 from android.widget import Button, TextView, LinearLayout, Toast, ProgressBar, RadioGroup, RadioButton, CheckBox
-from android.view import Gravity, ViewGroup, View
+from android.view import Gravity, ViewGroup
 from android.net import Uri
 from android.content import Intent, SharedPreferences, ActivityNotFoundException
 from android.app import Activity
@@ -21,9 +19,10 @@ from android.content.res import Configuration
 from android.app import UiModeManager
 from android.content import Context
 from android.util import TypedValue
-from android.graphics import Color, Typeface
+from android.graphics import Color
 from java.lang import Thread
-from java.io import File, FileOutputStream, FileInputStream
+from java.io import File
+from androidx.cardview.widget import CardView
 
 # Global state management
 class AppState:
@@ -33,6 +32,7 @@ class AppState:
     progress_percent_text = None
     status_text = None
     merge_button = None
+    settings_button = None
     current_step = 0
     total_steps = 6
     app_context = None
@@ -58,7 +58,7 @@ def get_output_dir():
         AppState.status_text.setText(f"Error getting output dir: {str(e)}")
         return None
 
-def update_progress(step_text, percentage=None):
+def update_progress(step_text):
     """Updates the progress bar and status text on the main thread."""
     def update_ui():
         AppState.current_step += 1
@@ -68,14 +68,8 @@ def update_progress(step_text, percentage=None):
         AppState.status_text.setText(step_text)
     Python.runOnMainThread(update_ui)
 
-def get_string_res(context, res_name):
-    """Gets string resource by name."""
-    res_id = context.getResources().getIdentifier(res_name, 'string', context.getPackageName())
-    if res_id != 0:
-        return context.getString(res_id)
-    return res_name.replace('_', ' ').capitalize() # Fallback
-
 def get_theme_color(context):
+    """Get colors based on current theme."""
     is_dark = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     if is_dark:
         return Color.WHITE, Color.BLACK, Color.rgb(30, 30, 30) # Text, Background, Card
@@ -108,6 +102,17 @@ def apply_theme_and_locale(activity):
         ui_manager.setNightMode(UiModeManager.MODE_NIGHT_AUTO)
         
     set_locale(activity, lang_pref)
+    
+    # Re-apply content view to refresh UI
+    if AppState.app_context:
+        # Check if we are on the main or settings layout to re-draw correctly
+        # This is a simple check, a more robust solution would use a state machine
+        try:
+            current_view = activity.findViewById(1) # a unique ID for the main layout
+            setup_main_layout(activity)
+        except:
+            # Assume we are on the settings layout
+            setup_settings_layout(activity)
 
 # --- Font Processing Core ---
 def subset_font(path, unicodes, temp_files):
@@ -127,7 +132,7 @@ def subset_font(path, unicodes, temp_files):
         return out
     return path
 
-def merge_fonts_thread(font_path1, font_path2, preview_dark=False):
+def merge_fonts_thread(font_path1, font_path2):
     """
     Core function to merge fonts, create previews, and save the output.
     This runs in a separate thread.
@@ -138,15 +143,15 @@ def merge_fonts_thread(font_path1, font_path2, preview_dark=False):
         temp_files = []
         
         # 1. Subset fonts
-        update_progress("جاري تنظيف الخطوط...", 1)
+        update_progress("جاري تنظيف الخطوط...")
         arabic_ranges = "U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669"
-        latin_range = "U+0020-007F,U+00A0-00FF" # Add basic Latin-1 Supplement
+        latin_range = "U+0020-007F,U+00A0-00FF"
         
         subsetted_path1 = subset_font(font_path1, latin_range, temp_files)
         subsetted_path2 = subset_font(font_path2, arabic_ranges, temp_files)
 
         # 2. Merge fonts
-        update_progress("جاري دمج الخطوط...", 2)
+        update_progress("جاري دمج الخطوط...")
         merger = Merger()
         merged_font_obj = merger.merge([subsetted_path1, subsetted_path2])
         
@@ -158,18 +163,18 @@ def merge_fonts_thread(font_path1, font_path2, preview_dark=False):
         merged_font_obj.save(merged_font_path)
         
         # 3. Create previews
-        update_progress("جاري إنشاء معاينة الخط...", 3)
+        update_progress("جاري إنشاء معاينة الخط...")
         preview_name = f"preview_light_{os.path.basename(merged_font_path).split('.')[0]}.jpg"
         preview_path = os.path.join(output_dir, preview_name)
         create_preview(merged_font_path, preview_path)
         
-        update_progress("جاري إنشاء معاينة الخط (داكن)...", 4)
+        update_progress("جاري إنشاء معاينة الخط (داكن)...")
         preview_dark_name = f"preview_dark_{os.path.basename(merged_font_path).split('.')[0]}.jpg"
         preview_dark_path = os.path.join(output_dir, preview_dark_name)
         create_preview(merged_font_path, preview_dark_path, bg_color=(18,18,18), text_color="white")
         
         # 5. Open output folder
-        update_progress("اكتمل الدمج. فتح المجلد...", 5)
+        update_progress("اكتمل الدمج. فتح المجلد...")
         def open_folder():
             uri = Uri.parse("file://" + output_dir)
             intent = Intent(Intent.ACTION_VIEW)
@@ -181,7 +186,7 @@ def merge_fonts_thread(font_path1, font_path2, preview_dark=False):
         Python.runOnMainThread(open_folder)
 
         # 6. Success message
-        update_progress("اكتمل بنجاح!", 6)
+        update_progress("اكتمل بنجاح!")
         def show_success_toast():
             Toast.makeText(
                 AppState.app_context,
@@ -244,8 +249,9 @@ def setup_main_layout(activity):
     layout.setOrientation(LinearLayout.VERTICAL)
     layout.setGravity(Gravity.CENTER)
     layout.setLayoutParams(ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-    layout.setPadding(48, 48, 48, 48)
+    layout.setPadding(64, 64, 64, 64)
     layout.setBackgroundColor(bg_color)
+    layout.setId(1)
 
     # Title
     title_text = TextView(activity)
@@ -257,11 +263,14 @@ def setup_main_layout(activity):
     layout.addView(title_text)
 
     # Font selection card
+    card_layout = CardView(activity)
+    card_layout.setCardBackgroundColor(card_color)
+    card_layout.setRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, activity.getResources().getDisplayMetrics()))
+    card_layout.setCardElevation(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, activity.getResources().getDisplayMetrics()))
+
     font_select_card = LinearLayout(activity)
     font_select_card.setOrientation(LinearLayout.VERTICAL)
-    font_select_card.setPadding(32, 32, 32, 32)
-    font_select_card.setBackgroundColor(card_color)
-    font_select_card.setGravity(Gravity.CENTER)
+    font_select_card.setPadding(64, 64, 64, 64)
     
     # Font 1 selection button
     select_font_button1 = Button(activity, None, android.R.attr.buttonStyleSmall)
@@ -277,7 +286,8 @@ def setup_main_layout(activity):
     font_select_card.addView(select_font_button2)
     AppState.select_font_button2 = select_font_button2
     
-    layout.addView(font_select_card)
+    card_layout.addView(font_select_card)
+    layout.addView(card_layout)
 
     # Status TextView
     status_text = TextView(activity)
@@ -319,6 +329,7 @@ def setup_main_layout(activity):
         if AppState.selected_font_path1 and AppState.selected_font_path2:
             AppState.progress_bar.setVisibility(ProgressBar.VISIBLE)
             AppState.progress_percent_text.setVisibility(TextView.VISIBLE)
+            AppState.current_step = 0
             Thread(lambda: merge_fonts_thread(AppState.selected_font_path1, AppState.selected_font_path2)).start()
         else:
             Toast.makeText(activity, "الرجاء اختيار خطين للدمج.", Toast.LENGTH_SHORT).show()
@@ -331,20 +342,22 @@ def setup_main_layout(activity):
     settings_button.setText("الإعدادات")
     settings_button.setOnClickListener(lambda v: setup_settings_layout(activity))
     layout.addView(settings_button)
+    AppState.settings_button = settings_button
 
     activity.setContentView(layout)
 
 def setup_settings_layout(activity):
     prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    text_color, bg_color, _ = get_theme_color(activity)
+    text_color, bg_color, card_color = get_theme_color(activity)
     current_theme = prefs.getString('theme', 'system')
     current_language = prefs.getString('language', 'system')
 
     layout = LinearLayout(activity)
     layout.setOrientation(LinearLayout.VERTICAL)
     layout.setGravity(Gravity.CENTER_HORIZONTAL)
-    layout.setPadding(48, 48, 48, 48)
+    layout.setPadding(64, 64, 64, 64)
     layout.setBackgroundColor(bg_color)
+    layout.setId(2)
 
     title_text = TextView(activity)
     title_text.setText("الإعدادات")
@@ -353,17 +366,27 @@ def setup_settings_layout(activity):
     title_text.setGravity(Gravity.CENTER)
     title_text.setPadding(0, 0, 0, 48)
     layout.addView(title_text)
+    
+    # Card for settings
+    card_layout = CardView(activity)
+    card_layout.setCardBackgroundColor(card_color)
+    card_layout.setRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, activity.getResources().getDisplayMetrics()))
+    card_layout.setCardElevation(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, activity.getResources().getDisplayMetrics()))
 
+    settings_content = LinearLayout(activity)
+    settings_content.setOrientation(LinearLayout.VERTICAL)
+    settings_content.setPadding(64, 64, 64, 64)
+    
     # Theme section
     theme_label = TextView(activity)
     theme_label.setText("الثيم")
-    theme_label.setPadding(0, 32, 0, 8)
+    theme_label.setPadding(0, 0, 0, 8)
     theme_label.setTextColor(text_color)
-    layout.addView(theme_label)
+    settings_content.addView(theme_label)
 
     theme_group = RadioGroup(activity)
     theme_group.setOrientation(LinearLayout.VERTICAL)
-    layout.addView(theme_group)
+    settings_content.addView(theme_group)
 
     light_rb = RadioButton(activity)
     light_rb.setText("فاتح")
@@ -401,11 +424,11 @@ def setup_settings_layout(activity):
     lang_label.setText("اللغة")
     lang_label.setPadding(0, 32, 0, 8)
     lang_label.setTextColor(text_color)
-    layout.addView(lang_label)
+    settings_content.addView(lang_label)
 
     lang_group = RadioGroup(activity)
     lang_group.setOrientation(LinearLayout.VERTICAL)
-    layout.addView(lang_group)
+    settings_content.addView(lang_group)
 
     ar_rb = RadioButton(activity)
     ar_rb.setText("العربية")
@@ -437,6 +460,9 @@ def setup_settings_layout(activity):
         apply_theme_and_locale(activity)
 
     lang_group.setOnCheckedChangeListener(on_lang_changed)
+    
+    card_layout.addView(settings_content)
+    layout.addView(card_layout)
 
     # Back button
     back_button = Button(activity)
@@ -449,16 +475,14 @@ def setup_settings_layout(activity):
 
 def main(activity):
     apply_theme_and_locale(activity)
-    
     setup_main_layout(activity)
     
     def on_activity_result(requestCode, resultCode, data):
         if resultCode == Activity.RESULT_OK and data:
             uri = data.getData()
             try:
-                # Save the font to a temporary file for processing
-                temp_dir = tempfile.gettempdir()
-                temp_file_name = os.path.basename(uri.getPath())
+                temp_dir = activity.getCacheDir().getAbsolutePath()
+                temp_file_name = f"font_{requestCode}.ttf"
                 temp_file_path = os.path.join(temp_dir, temp_file_name)
                 
                 content_resolver = activity.getContentResolver()
@@ -476,5 +500,6 @@ def main(activity):
                 Toast.makeText(activity, "تم اختيار الخط بنجاح.", Toast.LENGTH_SHORT).show()
             except Exception as e:
                 Toast.makeText(activity, f"خطأ في اختيار الخط: {e}", Toast.LENGTH_LONG).show()
+                AppState.status_text.setText(f"خطأ في اختيار الخط: {str(e)}")
 
     activity.addOnActivityResultListener(on_activity_result)
