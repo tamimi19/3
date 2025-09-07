@@ -19,7 +19,7 @@ android {
             version "3.12"
             pip {
                 install 'fontTools==4.59.1'
-                install 'Pillow==11.3.0'
+                install 'Pillow'
                 install 'arabic-reshaper==3.0.0'
                 install 'python-bidi==0.6.6'
                 
