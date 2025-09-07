@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import traceback
+import io
 from fontTools.ttLib import TTFont
 from fontTools.merge import Merger
 from fontTools.subset import main as subset_main
@@ -29,8 +30,8 @@ from java.io import BufferedInputStream, FileOutputStream
 
 # Global state management
 class AppState:
-    selected_font_path1 = None
-    selected_font_path2 = None
+    selected_font_data1 = None
+    selected_font_data2 = None
     progress_bar = None
     progress_percent_text = None
     status_text = None
@@ -113,43 +114,21 @@ def apply_theme_and_locale(activity):
             setup_settings_layout(activity)
 
 # --- Font Processing Core ---
-def subset_font(path, unicodes, temp_files):
-    """Subsets a font to keep only specified unicodes."""
-    base, _ = os.path.splitext(path)
-    out = os.path.join(tempfile.gettempdir(), os.path.basename(base) + "_sub.ttf")
-    saved_argv = sys.argv[:]
-    try:
-        sys.argv = ["pyftsubset", path, f"--unicodes={unicodes}", f"--output-file={out}", "--no-hinting"]
-        subset_main()
-    except SystemExit:
-        pass
-    finally:
-        sys.argv = saved_argv
-    if os.path.exists(out):
-        temp_files.append(out)
-        return out
-    return path
-
-def merge_fonts_thread(font_path1, font_path2):
+def merge_fonts_thread(font_data1, font_data2):
     """
     Core function to merge fonts, create previews, and save the output.
     This runs in a separate thread.
     """
     AppState.current_step = 0
     try:
-        processing_dir = tempfile.mkdtemp()
-        temp_files = []
+        update_progress("جاري تحضير الخطوط...")
         
-        update_progress("جاري تنظيف الخطوط...")
-        arabic_ranges = "U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669"
-        latin_range = "U+0020-007F,U+00A0-00FF"
+        font_file1 = io.BytesIO(font_data1)
+        font_file2 = io.BytesIO(font_data2)
         
-        subsetted_path1 = subset_font(font_path1, latin_range, temp_files)
-        subsetted_path2 = subset_font(font_path2, arabic_ranges, temp_files)
-
         update_progress("جاري دمج الخطوط...")
         merger = Merger()
-        merged_font_obj = merger.merge([subsetted_path1, subsetted_path2])
+        merged_font_obj = merger.merge([font_file1, font_file2])
         
         output_dir = get_output_dir(AppState.app_context)
         if not output_dir:
@@ -170,7 +149,7 @@ def merge_fonts_thread(font_path1, font_path2):
         
         update_progress("اكتمل الدمج. فتح المجلد...")
         def open_folder():
-            uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADownload%2FMergedFonts")
+            uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2Fcom.example.fontmerger%2Ffiles%2FDownload%2FMergedFonts")
             intent = Intent(Intent.ACTION_VIEW)
             intent.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
             try:
@@ -203,12 +182,6 @@ def merge_fonts_thread(font_path1, font_path2):
             AppState.progress_percent_text.setVisibility(TextView.INVISIBLE)
             AppState.status_text.setText(f"فشل الدمج: {str(e)}")
         Python.runOnMainThread(show_error_toast)
-        
-    finally:
-        try:
-            shutil.rmtree(processing_dir)
-        except:
-            pass
 
 def create_preview(font_path, out_path, bg_color="white", text_color="black"):
     """Creates a high-quality font preview image."""
@@ -311,11 +284,11 @@ def setup_main_layout(activity):
     merge_button = Button(activity)
     merge_button.setText("دمج الخطوط")
     def on_merge_clicked(v):
-        if AppState.selected_font_path1 and AppState.selected_font_path2:
+        if AppState.selected_font_data1 and AppState.selected_font_data2:
             AppState.progress_bar.setVisibility(ProgressBar.VISIBLE)
             AppState.progress_percent_text.setVisibility(TextView.VISIBLE)
             AppState.current_step = 0
-            Thread(lambda: merge_fonts_thread(AppState.selected_font_path1, AppState.selected_font_path2)).start()
+            Thread(lambda: merge_fonts_thread(AppState.selected_font_data1, AppState.selected_font_data2)).start()
         else:
             Toast.makeText(activity, "الرجاء اختيار خطين للدمج.", Toast.LENGTH_SHORT).show()
     merge_button.setOnClickListener(on_merge_clicked)
@@ -463,27 +436,26 @@ def main(activity):
         if resultCode == Activity.RESULT_OK and data and data.getData():
             uri = data.getData()
             try:
-                temp_dir = activity.getCacheDir().getAbsolutePath()
-                temp_file_name = f"font_{requestCode}.ttf"
-                temp_file_path = os.path.join(temp_dir, temp_file_name)
-                
                 content_resolver = activity.getContentResolver()
                 input_stream = content_resolver.openInputStream(uri)
                 
-                with open(temp_file_path, 'wb') as output_stream:
-                    buf = bytearray(4096)
-                    while True:
-                        bytes_read = input_stream.read(buf)
-                        if bytes_read == -1:
-                            break
-                        output_stream.write(buf[:bytes_read])
+                # Read all data from the InputStream and store it in a bytearray
+                byte_data = bytearray()
+                buf = bytearray(4096)
+                while True:
+                    bytes_read = input_stream.read(buf)
+                    if bytes_read == -1:
+                        break
+                    byte_data.extend(buf[:bytes_read])
                 
+                input_stream.close()
+
                 if requestCode == 1:
-                    AppState.selected_font_path1 = temp_file_path
-                    AppState.select_font_button1.setText(f"الخط الأول: {os.path.basename(temp_file_path)}")
+                    AppState.selected_font_data1 = byte_data
+                    AppState.select_font_button1.setText(f"الخط الأول: {uri.getLastPathSegment()}")
                 elif requestCode == 2:
-                    AppState.selected_font_path2 = temp_file_path
-                    AppState.select_font_button2.setText(f"الخط الثاني: {os.path.basename(temp_file_path)}")
+                    AppState.selected_font_data2 = byte_data
+                    AppState.select_font_button2.setText(f"الخط الثاني: {uri.getLastPathSegment()}")
                 
                 Toast.makeText(activity, "تم اختيار الخط بنجاح.", Toast.LENGTH_SHORT).show()
             except Exception as e:
