@@ -1,30 +1,18 @@
 plugins {
     id 'com.android.application'
-    id 'com.chaquo.python'
 }
 
 android {
-    namespace 'com.example.fontmerger'
-    compileSdk 34
+    namespace "com.example.myoneuiapp2"
+    compileSdk 33
+
     defaultConfig {
-        applicationId "com.example.fontmerger"
-        minSdk 24
-        targetSdk 34
+        applicationId "com.example.myoneuiapp2"
+        minSdk 30
+        targetSdk 33
         versionCode 1
         versionName "1.0"
-        ndk {
-            abiFilters "arm64-v8a", "x86_64"
-        }
-        python {
-            version "3.12"
-            pip {
-                install 'fontTools==4.59.1'
-                install 'Pillow'
-                install 'arabic-reshaper==3.0.0'
-                install 'python-bidi==0.6.6'
-                
-            }
-        }
+        multiDexEnabled true
     }
     buildTypes {
         release {
@@ -32,14 +20,37 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    buildFeatures {
+        viewBinding true
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
+configurations.all {
+    exclude group: 'androidx.appcompat', module: 'appcompat'
+    exclude group: 'androidx.core', module: 'core'
+}
+
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    // مكتبات One UI Project SESL
+    implementation 'io.github.oneuiproject.sesl:appcompat:1.4.0'
+    implementation 'io.github.oneuiproject.sesl:apppickerview:1.0.0'
+    implementation 'io.github.oneuiproject.sesl:material:1.0.0'
+    implementation 'io.github.oneuiproject.sesl:indexscroll:1.0.3'
+    implementation 'io.github.oneuiproject.sesl:picker-basic:1.2.0'
+    implementation 'io.github.oneuiproject.sesl:picker-color:1.1.0'
+    implementation 'io.github.oneuiproject.sesl:preference:1.1.0'
+    implementation 'io.github.oneuiproject.sesl:recyclerview:1.4.1'
+    implementation 'io.github.oneuiproject.sesl:swiperefreshlayout:1.0.0'
+
+    // مكتبة AndroidX
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.preference:preference:1.2.1'
+
+    // مكتبات أخرى
+    implementation 'com.airbnb.android:lottie:6.4.0'
+    implementation 'io.github.oneuiproject:icons:1.1.0'
+    implementation 'io.github.oneuiproject:design:1.2.6'
 }
