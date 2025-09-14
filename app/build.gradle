@@ -35,22 +35,10 @@ configurations.all {
 }
 
 dependencies {
-    // مكتبات One UI Project SESL
-    implementation 'io.github.oneuiproject.sesl:appcompat:1.4.0'
-    implementation 'io.github.oneuiproject.sesl:apppickerview:1.0.0'
-    implementation 'io.github.oneuiproject.sesl:material:1.0.0'
-    implementation 'io.github.oneuiproject.sesl:indexscroll:1.0.3'
-    implementation 'io.github.oneuiproject.sesl:picker-basic:1.2.0'
-    implementation 'io.github.oneuiproject.sesl:picker-color:1.1.0'
-    implementation 'io.github.oneuiproject.sesl:preference:1.1.0'
-    implementation 'io.github.oneuiproject.sesl:recyclerview:1.4.1'
-    implementation 'io.github.oneuiproject.sesl:swiperefreshlayout:1.0.0'
-
     // مكتبة AndroidX
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     // مكتبات أخرى
-    implementation 'com.airbnb.android:lottie:6.4.0'
     implementation 'io.github.oneuiproject:icons:1.1.0'
     implementation 'io.github.oneuiproject:design:1.2.6'
 }
